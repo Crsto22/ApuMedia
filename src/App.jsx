@@ -1,11 +1,11 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import Login from "./page/login";
-import Dashboard from "./page/dashboard";
-import Clientes from "./page/clientes";
+import Login from "./page/Login";
+import Dashboard from "./page/Dashboard";
+import Clientes from "./page/Clientes";
 import ForgotPassword from "./page/ForgotPassword";
 import ResetPassword from "./page/ResetPassword"; // Importar ResetPassword
-import Cuentas from "./page/cuentas";
+import Cuentas from "./page/Cuentas";
 import Loading from "./components/Loading";
 import { ClientesProvider } from "./context/ClientesContext";
 import { CuentasProvider } from "./context/CuentasContext"; // Importar CuentasProvider
