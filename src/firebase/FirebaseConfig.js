@@ -1,8 +1,9 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getDatabase } from "firebase/database"; // Importar Realtime Database
 
-// Configuración de Firebase (reemplaza con tus propios valores)
+// Configuración de Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyBWFQLugcfXYnjurYsJgjzHb1z_F6S1Zl4",
   authDomain: "apumedia-3d5f2.firebaseapp.com",
@@ -17,5 +18,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const realtimeDB = getDatabase(app); 
 
-export { app, auth, db };
+export { app, auth, db, realtimeDB };

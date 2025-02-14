@@ -8,8 +8,10 @@ import ResetPassword from "./page/ResetPassword"; // Importar ResetPassword
 import Cuentas from "./page/Cuentas";
 import Loading from "./components/Loading";
 import { ClientesProvider } from "./context/ClientesContext";
-import { CuentasProvider } from "./context/CuentasContext"; // Importar CuentasProvider
-import Messages from "./page/Messages"; 
+import { CuentasProvider } from "./context/CuentasContext";
+import { ChatProvider } from "./context/ChatContext";
+import Chats from "./page/Chats"; 
+
 function App() {
   return (
     <AuthProvider>
@@ -57,7 +59,18 @@ const AppRoutes = () => {
       />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-       <Route path="/messages" element={<Messages />} />
+      <Route
+        path="/chats"
+        element={
+          user ? (
+            <ChatProvider> {/* Envolver Chats con ChatProvider */}
+              <Chats />
+            </ChatProvider>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
       <Route
         path="/cuentas"
         element={
