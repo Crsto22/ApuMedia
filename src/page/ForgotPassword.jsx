@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Mail } from "lucide-react";
-import { resetPassword } from "../firebase/auth";
+import { resetPassword } from "../firebase/Auth";
 import { Link } from "react-router-dom";
 
 const ForgotPassword = () => {
