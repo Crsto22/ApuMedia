@@ -9,7 +9,7 @@ import Cuentas from "./page/Cuentas";
 import Loading from "./components/Loading";
 import { ClientesProvider } from "./context/ClientesContext";
 import { CuentasProvider } from "./context/CuentasContext"; // Importar CuentasProvider
-import Messages from "./page/messages"; 
+import Messages from "./page/Messages"; 
 function App() {
   return (
     <AuthProvider>
