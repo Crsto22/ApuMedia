@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import { ref, onValue, push, set, query, orderByChild, equalTo } from "firebase/database";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { ref, onValue, push, set, update } from "firebase/database";
 import { auth, realtimeDB } from "../firebase/FirebaseConfig";
 
 // Crear el contexto del chat
@@ -11,6 +11,8 @@ export const ChatProvider = ({ children }) => {
   const [currentChatId, setCurrentChatId] = useState(null); // ID del chat actual
   const [users, setUsers] = useState([]); // Lista de usuarios disponibles
   const [loading, setLoading] = useState(false); // Estado de carga
+  const [searchQuery, setSearchQuery] = useState(""); // Estado para la búsqueda
+  const [filteredUsers, setFilteredUsers] = useState([]); // Usuarios filtrados
 
   // 🔹 Obtener todos los usuarios de la base de datos
   useEffect(() => {
@@ -35,9 +37,21 @@ export const ChatProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
+  // 🔹 Filtrar usuarios en tiempo real según la búsqueda
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const filtered = users.filter((user) =>
+        user.nombre.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredUsers(filtered);
+    } else {
+      setFilteredUsers([]); // Si no hay búsqueda, no mostrar usuarios
+    }
+  }, [searchQuery, users]);
+
   // 🔹 Obtener mensajes en tiempo real del chat actual
   useEffect(() => {
-    if (!currentChatId) return; // Si no hay un chat seleccionado, no hacer nada
+    if (!currentChatId || !auth.currentUser) return; // Si no hay un chat seleccionado o usuario autenticado, no hacer nada
 
     // Referencia a la colección de mensajes del chat actual
     const messagesRef = ref(realtimeDB, `chats/${currentChatId}/messages`);
@@ -52,6 +66,9 @@ export const ChatProvider = ({ children }) => {
           ...messagesData[key],
         }));
         setMessages(messagesList);
+
+        // Marcar mensajes como leídos
+        markMessagesAsRead(messagesList);
       } else {
         setMessages([]); // Si no hay mensajes, establecer un array vacío
       }
@@ -61,6 +78,31 @@ export const ChatProvider = ({ children }) => {
     // Limpiar la suscripción al desmontar el componente
     return () => unsubscribe();
   }, [currentChatId]);
+
+  // 🔹 Marcar mensajes como leídos
+  const markMessagesAsRead = async (messagesList) => {
+    const currentUserId = auth.currentUser.uid;
+
+    // Filtrar los mensajes que no han sido leídos y no son del usuario actual
+    const unreadMessages = messagesList.filter(
+      (message) => !message.isRead && message.senderId !== currentUserId
+    );
+
+    // Actualizar cada mensaje no leído
+    if (unreadMessages.length > 0) {
+      const updates = {};
+      unreadMessages.forEach((message) => {
+        updates[`chats/${currentChatId}/messages/${message.id}/isRead`] = true;
+      });
+
+      // Realizar la actualización en la base de datos
+      try {
+        await update(ref(realtimeDB), updates);
+      } catch (error) {
+        console.error("Error al marcar mensajes como leídos:", error);
+      }
+    }
+  };
 
   // 🔹 Enviar un mensaje
   const sendMessage = async (text) => {
@@ -101,7 +143,10 @@ export const ChatProvider = ({ children }) => {
         messages,
         currentChatId,
         users,
+        filteredUsers,
         loading,
+        searchQuery,
+        setSearchQuery,
         sendMessage,
         selectChat,
       }}
