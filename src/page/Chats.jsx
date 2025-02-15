@@ -6,12 +6,18 @@ import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Nabvar';
 
 const Chats = () => {
-    const { users, messages, currentChatId, selectChat, sendMessage, markMessagesAsRead } = useChat();
+    const { users, messages, currentChatId, selectChat, sendMessage, markMessagesAsRead, clearChat } = useChat(); // Añadir clearChat
     const { user } = useAuth();
     const [newMessage, setNewMessage] = useState("");
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
 
+    // Limpiar el chat al desmontar el componente
+    useEffect(() => {
+        return () => {
+            clearChat(); // Limpiar el estado del chat
+        };
+    }, [clearChat]);
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };

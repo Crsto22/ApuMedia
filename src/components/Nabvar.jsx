@@ -7,9 +7,11 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useChat } from '../context/ChatContext'; // Importar el contexto de chat
 
 const Navbar = () => {
   const { user } = useAuth();
+  const { unreadMessagesCount } = useChat(); // Obtener el contador de mensajes no leídos
 
   return (
     <nav className="h-16  border-b border-gray-100 px-8 flex items-center justify-between shadow-lg backdrop-blur-sm bg-white/80 sticky top-0 z-50">
@@ -40,9 +42,13 @@ const Navbar = () => {
 
           {/* Chat */}
           <button className="relative p-2.5 hover:bg-amber-50 rounded-xl transition-all duration-150 hover:text-amber-500 group cursor-pointer">
-            <MessageSquare className="w-5 h-5 text-gray-600 group-hover:text-amber-500 transition-colors duration-150" />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-white animate-pulse"></span>
-          </button>
+  <MessageSquare className="w-5 h-5 text-gray-600 group-hover:text-amber-500 transition-colors duration-150" />
+  {unreadMessagesCount > 0 && ( // Mostrar el globo solo si hay mensajes no leídos
+    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs flex items-center justify-center rounded-full ring-2 ring-white">
+      {unreadMessagesCount}
+    </span>
+  )}
+</button>
 
           {/* Settings */}
           <button className="p-2.5 hover:bg-amber-50 rounded-xl transition-all duration-150 hover:text-amber-500 group cursor-pointer">

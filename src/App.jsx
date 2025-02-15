@@ -4,20 +4,22 @@ import Login from "./page/Login";
 import Dashboard from "./page/Dashboard";
 import Clientes from "./page/Clientes";
 import ForgotPassword from "./page/ForgotPassword";
-import ResetPassword from "./page/ResetPassword"; // Importar ResetPassword
+import ResetPassword from "./page/ResetPassword";
 import Cuentas from "./page/Cuentas";
 import Loading from "./components/Loading";
 import { ClientesProvider } from "./context/ClientesContext";
 import { CuentasProvider } from "./context/CuentasContext";
-import { ChatProvider } from "./context/ChatContext";
-import Chats from "./page/Chats"; 
+import { ChatProvider } from "./context/ChatContext"; // Importar ChatProvider
+import Chats from "./page/Chats";
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
+      <ChatProvider> {/* Envolver toda la aplicación con ChatProvider */}
+        <Router>
+          <AppRoutes />
+        </Router>
+      </ChatProvider>
     </AuthProvider>
   );
 }
@@ -63,9 +65,7 @@ const AppRoutes = () => {
         path="/chats"
         element={
           user ? (
-            <ChatProvider> {/* Envolver Chats con ChatProvider */}
-              <Chats />
-            </ChatProvider>
+            <Chats /> 
           ) : (
             <Navigate to="/" replace />
           )

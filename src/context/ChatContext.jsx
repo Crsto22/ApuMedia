@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { ref, onValue, push, set, update } from "firebase/database";
+import { ref, onValue, push, set, update, get } from "firebase/database";
 import { auth, realtimeDB } from "../firebase/FirebaseConfig";
 
 // Crear el contexto del chat
@@ -7,12 +7,19 @@ const ChatContext = createContext();
 
 // Proveedor del contexto
 export const ChatProvider = ({ children }) => {
-  const [messages, setMessages] = useState([]); // Mensajes del chat
+  const [messages, setMessages] = useState([]); // Mensajes del chat actual
   const [currentChatId, setCurrentChatId] = useState(null); // ID del chat actual
   const [users, setUsers] = useState([]); // Lista de usuarios disponibles
   const [loading, setLoading] = useState(false); // Estado de carga
   const [searchQuery, setSearchQuery] = useState(""); // Estado para la búsqueda
   const [filteredUsers, setFilteredUsers] = useState([]); // Usuarios filtrados
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0); // Contador de mensajes no leídos
+
+  // 🔹 Función para limpiar el estado del chat
+  const clearChat = useCallback(() => {
+    setCurrentChatId(null); // Limpiar el chat actual
+    setMessages([]); // Limpiar los mensajes
+  }, []);
 
   // 🔹 Obtener todos los usuarios de la base de datos
   useEffect(() => {
@@ -49,6 +56,66 @@ export const ChatProvider = ({ children }) => {
     }
   }, [searchQuery, users]);
 
+  // 🔹 Contar mensajes no leídos para el usuario actual
+  const countUnreadMessages = useCallback(async (userId) => {
+    try {
+      const chatsRef = ref(realtimeDB, "chats");
+      const snapshot = await get(chatsRef);
+
+      if (snapshot.exists()) {
+        const chatsData = snapshot.val();
+        let totalUnread = 0;
+
+        // Recorrer todos los chats
+        Object.keys(chatsData).forEach((chatId) => {
+          if (chatId.includes(userId)) {
+            // Verificar si el chat incluye al usuario actual
+            const messages = chatsData[chatId].messages;
+
+            // Contar mensajes no leídos donde el usuario actual es el destinatario
+            Object.keys(messages).forEach((messageId) => {
+              const message = messages[messageId];
+              if (!message.isRead && message.senderId !== userId) {
+                totalUnread++;
+              }
+            });
+          }
+        });
+
+        return totalUnread;
+      } else {
+        return 0; // No hay chats
+      }
+    } catch (error) {
+      console.error("Error al contar mensajes no leídos:", error);
+      throw error;
+    }
+  }, []);
+
+  // 🔹 Actualizar el contador de mensajes no leídos
+  useEffect(() => {
+    if (auth.currentUser) {
+      const userId = auth.currentUser.uid;
+
+      // Contar mensajes no leídos al cargar el componente
+      countUnreadMessages(userId).then((count) => {
+        setUnreadMessagesCount(count);
+      });
+
+      // Escuchar cambios en los chats para actualizar el contador
+      const chatsRef = ref(realtimeDB, "chats");
+      const unsubscribe = onValue(chatsRef, (snapshot) => {
+        if (snapshot.exists()) {
+          countUnreadMessages(userId).then((count) => {
+            setUnreadMessagesCount(count);
+          });
+        }
+      });
+
+      return () => unsubscribe(); // Limpiar suscripción
+    }
+  }, [countUnreadMessages]);
+
   // 🔹 Obtener mensajes en tiempo real del chat actual
   useEffect(() => {
     if (!currentChatId || !auth.currentUser) return; // Si no hay un chat seleccionado o usuario autenticado, no hacer nada
@@ -67,8 +134,13 @@ export const ChatProvider = ({ children }) => {
         }));
         setMessages(messagesList);
 
-        // Marcar mensajes como leídos
-        markMessagesAsRead(messagesList);
+        // Marcar mensajes no leídos como leídos
+        const unreadMessages = messagesList.filter(
+          (msg) => !msg.isRead && msg.senderId !== auth.currentUser.uid
+        );
+        if (unreadMessages.length > 0) {
+          markMessagesAsRead(unreadMessages);
+        }
       } else {
         setMessages([]); // Si no hay mensajes, establecer un array vacío
       }
@@ -77,31 +149,43 @@ export const ChatProvider = ({ children }) => {
 
     // Limpiar la suscripción al desmontar el componente
     return () => unsubscribe();
-  }, [currentChatId]);
+  }, [currentChatId, auth.currentUser]);
 
   // 🔹 Marcar mensajes como leídos
-  const markMessagesAsRead = async (messagesList) => {
-    const currentUserId = auth.currentUser.uid;
-
-    // Filtrar los mensajes que no han sido leídos y no son del usuario actual
-    const unreadMessages = messagesList.filter(
-      (message) => !message.isRead && message.senderId !== currentUserId
-    );
-
-    // Actualizar cada mensaje no leído
-    if (unreadMessages.length > 0) {
+  const markMessagesAsRead = useCallback(async (messages) => {
+    try {
       const updates = {};
-      unreadMessages.forEach((message) => {
-        updates[`chats/${currentChatId}/messages/${message.id}/isRead`] = true;
+
+      // Marcar mensajes no leídos como leídos en la base de datos
+      messages.forEach((msg) => {
+        updates[`chats/${currentChatId}/messages/${msg.id}/isRead`] = true;
       });
 
       // Realizar la actualización en la base de datos
-      try {
+      if (Object.keys(updates).length > 0) {
         await update(ref(realtimeDB), updates);
-      } catch (error) {
-        console.error("Error al marcar mensajes como leídos:", error);
       }
+
+      // Actualizar el estado local
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          messages.some((m) => m.id === msg.id) ? { ...msg, isRead: true } : msg
+        )
+      );
+    } catch (error) {
+      console.error("Error al marcar mensajes como leídos:", error);
+      throw error;
     }
+  }, [currentChatId]);
+
+  // 🔹 Seleccionar un chat
+  const selectChat = (userId) => {
+    if (!auth.currentUser) return; // Validar que haya un usuario autenticado
+
+    // Generar el ID del chat combinando los IDs de los usuarios
+    const currentUserId = auth.currentUser.uid;
+    const chatId = [currentUserId, userId].sort().join("_"); // Ordenar los IDs para evitar duplicados
+    setCurrentChatId(chatId);
   };
 
   // 🔹 Enviar un mensaje
@@ -127,16 +211,6 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // 🔹 Seleccionar un chat
-  const selectChat = (userId) => {
-    if (!auth.currentUser) return; // Validar que haya un usuario autenticado
-
-    // Generar el ID del chat combinando los IDs de los usuarios
-    const currentUserId = auth.currentUser.uid;
-    const chatId = [currentUserId, userId].sort().join("_"); // Ordenar los IDs para evitar duplicados
-    setCurrentChatId(chatId);
-  };
-
   return (
     <ChatContext.Provider
       value={{
@@ -146,9 +220,12 @@ export const ChatProvider = ({ children }) => {
         filteredUsers,
         loading,
         searchQuery,
+        unreadMessagesCount,
         setSearchQuery,
         sendMessage,
         selectChat,
+        clearChat,
+        markMessagesAsRead,
       }}
     >
       {children}
