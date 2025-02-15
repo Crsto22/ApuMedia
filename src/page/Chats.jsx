@@ -76,6 +76,19 @@ const Chats = () => {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
+    // Función para formatear la última vez que el usuario estuvo en línea
+    const formatLastSeen = (lastSeen) => {
+        if (!lastSeen) return "Desconectado";
+        const now = new Date();
+        const lastSeenDate = new Date(lastSeen);
+        const diffInMinutes = Math.floor((now - lastSeenDate) / 60000);
+
+        if (diffInMinutes < 1) return "En línea";
+        if (diffInMinutes < 60) return `Hace ${diffInMinutes} minutos`;
+        if (diffInMinutes < 1440) return `Hace ${Math.floor(diffInMinutes / 60)} horas`;
+        return `Hace ${Math.floor(diffInMinutes / 1440)} días`;
+    };
+
     // Marcar mensajes como leídos cuando el usuario los vea
     useEffect(() => {
         if (messagesContainerRef.current && currentChatId) {
@@ -168,7 +181,10 @@ const Chats = () => {
                                                     {currentChatUser?.nombre}
                                                 </h3>
                                                 <p className="text-sm text-gray-500">
-                                                    {currentChatUser?.isOnline ? "En línea" : "Desconectado"}
+                                                    {currentChatUser?.isOnline
+                                                        ? "En línea"
+                                                        : `Última vez: ${formatLastSeen(currentChatUser?.lastSeen)}`
+                                                    }
                                                 </p>
                                             </div>
                                         </div>
