@@ -13,13 +13,41 @@ export const ChatProvider = ({ children }) => {
   const [loading, setLoading] = useState(false); // Estado de carga
   const [searchQuery, setSearchQuery] = useState(""); // Estado para la búsqueda
   const [filteredUsers, setFilteredUsers] = useState([]); // Usuarios filtrados
-  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0); // Contador de mensajes no leídos
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0); // Contador global de mensajes no leídos
+  const [unreadMessagesByChat, setUnreadMessagesByChat] = useState({}); // Contador de mensajes no leídos por chat
 
   // 🔹 Función para limpiar el estado del chat
   const clearChat = useCallback(() => {
     setCurrentChatId(null); // Limpiar el chat actual
     setMessages([]); // Limpiar los mensajes
   }, []);
+
+  // 🔹 Marcar mensajes como leídos
+  const markMessagesAsRead = useCallback(async (messages) => {
+    try {
+      const updates = {};
+
+      // Marcar mensajes no leídos como leídos en la base de datos
+      messages.forEach((msg) => {
+        updates[`chats/${currentChatId}/messages/${msg.id}/isRead`] = true;
+      });
+
+      // Realizar la actualización en la base de datos
+      if (Object.keys(updates).length > 0) {
+        await update(ref(realtimeDB), updates);
+      }
+
+      // Actualizar el estado local
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          messages.some((m) => m.id === msg.id) ? { ...msg, isRead: true } : msg
+        )
+      );
+    } catch (error) {
+      console.error("Error al marcar mensajes como leídos:", error);
+      throw error;
+    }
+  }, [currentChatId]);
 
   // 🔹 Obtener todos los usuarios de la base de datos
   useEffect(() => {
@@ -56,7 +84,7 @@ export const ChatProvider = ({ children }) => {
     }
   }, [searchQuery, users]);
 
-  // 🔹 Contar mensajes no leídos para el usuario actual
+  // 🔹 Contar mensajes no leídos para el usuario actual (global y por chat)
   const countUnreadMessages = useCallback(async (userId) => {
     try {
       const chatsRef = ref(realtimeDB, "chats");
@@ -65,26 +93,40 @@ export const ChatProvider = ({ children }) => {
       if (snapshot.exists()) {
         const chatsData = snapshot.val();
         let totalUnread = 0;
+        const unreadByChat = {};
 
         // Recorrer todos los chats
         Object.keys(chatsData).forEach((chatId) => {
           if (chatId.includes(userId)) {
             // Verificar si el chat incluye al usuario actual
             const messages = chatsData[chatId].messages;
+            let chatUnread = 0;
 
             // Contar mensajes no leídos donde el usuario actual es el destinatario
             Object.keys(messages).forEach((messageId) => {
               const message = messages[messageId];
               if (!message.isRead && message.senderId !== userId) {
                 totalUnread++;
+                chatUnread++;
               }
             });
+
+            // Guardar el contador de mensajes no leídos por chat
+            if (chatUnread > 0) {
+              unreadByChat[chatId] = chatUnread;
+            }
           }
         });
 
-        return totalUnread;
+        // Actualizar el estado global y por chat
+        setUnreadMessagesCount(totalUnread);
+        setUnreadMessagesByChat(unreadByChat);
+
+        return { totalUnread, unreadByChat };
       } else {
-        return 0; // No hay chats
+        setUnreadMessagesCount(0);
+        setUnreadMessagesByChat({});
+        return { totalUnread: 0, unreadByChat: {} };
       }
     } catch (error) {
       console.error("Error al contar mensajes no leídos:", error);
@@ -92,22 +134,24 @@ export const ChatProvider = ({ children }) => {
     }
   }, []);
 
-  // 🔹 Actualizar el contador de mensajes no leídos
+  // 🔹 Actualizar el contador de mensajes no leídos (global y por chat)
   useEffect(() => {
     if (auth.currentUser) {
       const userId = auth.currentUser.uid;
 
       // Contar mensajes no leídos al cargar el componente
-      countUnreadMessages(userId).then((count) => {
-        setUnreadMessagesCount(count);
+      countUnreadMessages(userId).then(({ totalUnread, unreadByChat }) => {
+        setUnreadMessagesCount(totalUnread);
+        setUnreadMessagesByChat(unreadByChat);
       });
 
       // Escuchar cambios en los chats para actualizar el contador
       const chatsRef = ref(realtimeDB, "chats");
       const unsubscribe = onValue(chatsRef, (snapshot) => {
         if (snapshot.exists()) {
-          countUnreadMessages(userId).then((count) => {
-            setUnreadMessagesCount(count);
+          countUnreadMessages(userId).then(({ totalUnread, unreadByChat }) => {
+            setUnreadMessagesCount(totalUnread);
+            setUnreadMessagesByChat(unreadByChat);
           });
         }
       });
@@ -149,34 +193,7 @@ export const ChatProvider = ({ children }) => {
 
     // Limpiar la suscripción al desmontar el componente
     return () => unsubscribe();
-  }, [currentChatId, auth.currentUser]);
-
-  // 🔹 Marcar mensajes como leídos
-  const markMessagesAsRead = useCallback(async (messages) => {
-    try {
-      const updates = {};
-
-      // Marcar mensajes no leídos como leídos en la base de datos
-      messages.forEach((msg) => {
-        updates[`chats/${currentChatId}/messages/${msg.id}/isRead`] = true;
-      });
-
-      // Realizar la actualización en la base de datos
-      if (Object.keys(updates).length > 0) {
-        await update(ref(realtimeDB), updates);
-      }
-
-      // Actualizar el estado local
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          messages.some((m) => m.id === msg.id) ? { ...msg, isRead: true } : msg
-        )
-      );
-    } catch (error) {
-      console.error("Error al marcar mensajes como leídos:", error);
-      throw error;
-    }
-  }, [currentChatId]);
+  }, [currentChatId, auth.currentUser, markMessagesAsRead]);
 
   // 🔹 Seleccionar un chat
   const selectChat = (userId) => {
@@ -221,6 +238,7 @@ export const ChatProvider = ({ children }) => {
         loading,
         searchQuery,
         unreadMessagesCount,
+        unreadMessagesByChat,
         setSearchQuery,
         sendMessage,
         selectChat,
