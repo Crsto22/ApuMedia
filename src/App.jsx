@@ -15,11 +15,9 @@ import Chats from "./page/Chats";
 function App() {
   return (
     <AuthProvider>
-      <ChatProvider> {/* Envolver toda la aplicación con ChatProvider */}
-        <Router>
-          <AppRoutes />
-        </Router>
-      </ChatProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
     </AuthProvider>
   );
 }
@@ -31,53 +29,45 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      <Route
-        path="/"
-        element={user ? <Navigate to="/dashboard" replace /> : <Login />}
-      />
-      <Route
-        path="/dashboard"
-        element={
-          user ? (
-            <ClientesProvider>
-              <Dashboard />
-            </ClientesProvider>
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
-      <Route
-        path="/clientes"
-        element={
-          user ? (
-            <ClientesProvider>
-              <Clientes />
-            </ClientesProvider>
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
+      {/* Rutas públicas */}
+      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+
+      {/* Rutas protegidas (requieren autenticación) */}
       <Route
-        path="/chats"
+        path="/*"
         element={
           user ? (
-            <Chats /> 
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
-      <Route
-        path="/cuentas"
-        element={
-          user ? (
-            <CuentasProvider>
-              <Cuentas />
-            </CuentasProvider>
+            <ChatProvider> {/* Envolver todas las rutas protegidas con ChatProvider */}
+              <Routes>
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ClientesProvider>
+                      <Dashboard />
+                    </ClientesProvider>
+                  }
+                />
+                <Route
+                  path="/clientes"
+                  element={
+                    <ClientesProvider>
+                      <Clientes />
+                    </ClientesProvider>
+                  }
+                />
+                <Route
+                  path="/cuentas"
+                  element={
+                    <CuentasProvider>
+                      <Cuentas />
+                    </CuentasProvider>
+                  }
+                />
+                <Route path="/chats" element={<Chats />} />
+              </Routes>
+            </ChatProvider>
           ) : (
             <Navigate to="/" replace />
           )
