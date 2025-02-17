@@ -3,7 +3,7 @@ import { MessageSquare, Send, Search, MoreVertical, Check, CheckCheck } from "lu
 import { useChat } from "../context/ChatContext";
 import { useAuth } from "../context/AuthContext";
 import Sidebar from '../components/Sidebar';
-import Navbar from '../components/Nabvar';
+import Navbar from '../components/Navbar';
 
 const Chats = () => {
   const {
@@ -14,17 +14,18 @@ const Chats = () => {
     sendMessage,
     markMessagesAsRead,
     clearChat,
-    unreadMessagesByChat, // Obtener los mensajes no leídos por chat
+    unreadMessagesByChat,
   } = useChat();
   const { user } = useAuth();
   const [newMessage, setNewMessage] = useState("");
+  const [searchTerm, setSearchTerm] = useState(""); // Estado para el término de búsqueda
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
 
   // Limpiar el chat al desmontar el componente
   useEffect(() => {
     return () => {
-      clearChat(); // Limpiar el estado del chat
+      clearChat();
     };
   }, [clearChat]);
 
@@ -56,8 +57,12 @@ const Chats = () => {
 
   const currentChatUser = getCurrentChatUser();
 
-  // Filtrar usuarios para excluir al usuario actual
-  const filteredUsers = users.filter((chatUser) => chatUser.uid !== user?.uid);
+  // Filtrar usuarios para excluir al usuario actual y aplicar la búsqueda
+  const filteredUsers = users
+    .filter((chatUser) => chatUser.uid !== user?.uid)
+    .filter((chatUser) =>
+      chatUser.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   // Formatear la hora del mensaje
   const formatMessageTime = (timestamp) => {
@@ -84,7 +89,6 @@ const Chats = () => {
       const container = messagesContainerRef.current;
       const handleScroll = () => {
         if (isNearBottom()) {
-          // Marcar mensajes como leídos
           const unreadMessages = messages.filter(
             (msg) => !msg.isRead && msg.senderId !== user.uid
           );
@@ -122,6 +126,8 @@ const Chats = () => {
                   type="text"
                   placeholder="Buscar chat..."
                   className="w-full pl-9 pr-4 py-2.5 bg-gray-50/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)} // Actualizar el término de búsqueda
                 />
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
               </div>
@@ -129,9 +135,7 @@ const Chats = () => {
 
             <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent hover:scrollbar-thumb-gray-300">
               {filteredUsers.map((chatUser) => {
-                // Generar el ID del chat para este usuario
                 const chatId = [user.uid, chatUser.uid].sort().join("_");
-                // Obtener la cantidad de mensajes no leídos para este chat
                 const unreadCount = unreadMessagesByChat[chatId] || 0;
 
                 return (

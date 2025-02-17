@@ -1,6 +1,6 @@
 import React from 'react';
 import Sidebar from '../components/Sidebar';
-import Navbar from '../components/Nabvar';
+import Navbar from '../components/Navbar';
 import { BarChart2, TrendingUp, Users, Play, AlertCircle, Activity, DollarSign, Clock, Settings, Bell, Search, Filter, ChevronRight, MoreVertical } from 'lucide-react';
 
 const Dashboard = () => {

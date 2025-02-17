@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
-import Navbar from '../components/Nabvar';
+import Navbar from '../components/Navbar';
 import { User, Mail, Lock, Calendar, Plus, Search, Edit2, Trash2, Monitor, Users } from 'lucide-react';
 import { useCuentas } from '../context/CuentasContext'; // Importar el contexto de cuentas
 import ModalAgregarCuenta from '../components/ModalAgregarCuenta'; // Importar el modal de agregar

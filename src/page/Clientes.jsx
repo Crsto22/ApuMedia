@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import Sidebar from "../components/Sidebar";
-import Navbar from "../components/Nabvar";
+import Navbar from "../components/Navbar";
 import { useClientes } from "../context/ClientesContext";
 import {
   User, Mail, Phone, Calendar,
